@@ -1,71 +1,86 @@
 using System;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace RemoteCarController
 {
-    class Program
+    public partial class Form1 : Form
     {
-        // Define valid commands based on the grammar
-        private static HashSet<string> validCommands = new HashSet<string>
+        public Form1()
         {
-            "Start",
-            "Stop",
-            "Accelerate",
-            "Brake",
-            "Right"
-            // Note: "Left" is included for context but is invalid for the car
-        };
+            InitializeComponent();
+        }
 
-        public static void Main(string[] args)
+        private void Compile_Click(object sender, EventArgs e)
         {
-            // User input command
-            Console.WriteLine("Enter a command for the remote car (Start, Stop, Accelerate, Brake, Right, Left):");
-            string inputCommand = Console.ReadLine();
+            // Define initial and final states
+            string Initial_State = "Idle";
+            string Final_State = "Stopped";
 
-            // Check if the command is valid using both methods
-            if (IsValidCommand(inputCommand))
+            // Define state transitions
+            var stateMachine = new Dictionary<string, Dictionary<string, string>>();
+            
+            // Define transitions for each state
+            stateMachine.Add("Idle", new Dictionary<string, string>()
             {
-                if (inputCommand.Equals("Left", StringComparison.OrdinalIgnoreCase))
+                { "Start", "Running" },
+                { "Stop", "Stopped" },
+                { "Accelerate", "Idle" }, // Invalid from Idle, remains Idle
+            });
+            
+            stateMachine.Add("Running", new Dictionary<string, string>()
+            {
+                { "Accelerate", "Moving" },
+                { "Stop", "Stopped" },
+                { "Right", "TurningRight" },
+                { "Left", "TurningLeft" }
+            });
+            
+            stateMachine.Add("Moving", new Dictionary<string, string>()
+            {
+                { "Stop", "Stopped" },
+                { "Right", "TurningRight" },
+                { "Left", "TurningLeft" },
+                { "Accelerate", "Moving" } // Continues moving
+            });
+
+            stateMachine.Add("TurningRight", new Dictionary<string, string>()
+            {
+                { "Stop", "Stopped" },
+                { "Accelerate", "Moving" }
+            });
+            
+            stateMachine.Add("TurningLeft", new Dictionary<string, string>()
+            {
+                { "Stop", "Stopped" },
+                { "Accelerate", "Moving" }
+            });
+
+            string currentState = Initial_State;
+            string[] commands = Input.Text.Split(' ');
+
+            foreach (var command in commands)
+            {
+                if (stateMachine[currentState].ContainsKey(command))
                 {
-                    Console.WriteLine("Error: The car cannot turn left.");
+                    currentState = stateMachine[currentState][command];
                 }
                 else
                 {
-                    Console.WriteLine($"Command '{inputCommand}' executed successfully.");
+                    Output.Text = $"Error: '{command}' is not a valid command from state '{currentState}'.";
+                    return;
                 }
+            }
+
+            // Check if we reached the final state
+            if (currentState == Final_State)
+            {
+                Output.Text = "RESULT OKAY";
             }
             else
             {
-                Console.WriteLine("Invalid command. Please enter a valid command.");
+                Output.Text = "ERROR: Did not reach final state.";
             }
-
-            // Define an array of commands to test
-            string[] commands = { "Start", "Accelerate", "Right", "Left", "Stop", "Brake" };
-
-            // Validate predefined commands using regex
-            Console.WriteLine("\nTesting predefined commands:");
-            foreach (var command in commands)
-            {
-                if (ParseCommand(command))
-                    Console.WriteLine($"'{command}' is a valid command.");
-                else
-                    Console.WriteLine($"'{command}' is NOT a valid command. (Left turn is not supported.)");
-            }
-        }
-
-        static bool IsValidCommand(string command)
-        {
-            return validCommands.Contains(command);
-        }
-
-        public static bool ParseCommand(string command)
-        {
-            // Regular expression pattern for valid commands
-            string pattern = @"^(Start|Stop|Accelerate|Brake|Right)$";
-
-            // Check if command matches any valid terminal
-            return Regex.IsMatch(command, pattern);
         }
     }
 }
